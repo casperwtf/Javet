@@ -375,7 +375,9 @@ async function buildLinux(config: BuildConfig): Promise<boolean> {
         libraryPath,
       ];
       console.log(`Running: ${execstackCmd.join(" ")}`);
-      if (!await runCommand(execstackCmd)) {
+      // execstack is gone from newer distributions; clang already marks the stack non-executable.
+      const execstackRan = await runCommand(execstackCmd).catch(() => false);
+      if (!execstackRan) {
         console.warn(yellow("Warning: execstack command failed, continuing anyway..."));
       }
     }

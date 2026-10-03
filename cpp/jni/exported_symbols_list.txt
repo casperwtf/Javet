@@ -20,3 +20,4 @@ _JNI_OnUnload
 _Java_com_caoccao_javet_*
 _napi_*
 _node_*
+_javet_ffm_*

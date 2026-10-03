@@ -74,6 +74,8 @@ namespace Javet {
         public:
             V8Runtime* v8Runtime;
             V8PersistentBigInt* v8PersistentCallbackContextHandlePointer;
+            // FFM callback flags learned on the first JNI call, -1 until then.
+            int32_t ffmFlags;
             explicit JavetCallbackContextReference(V8Runtime* v8Runtime) noexcept;
             void CallFunction(const v8::FunctionCallbackInfo<v8::Value>& args) noexcept;
             void CallPropertyGetter(

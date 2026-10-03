@@ -1799,6 +1799,16 @@ public interface IV8Native {
     void registerV8Runtime(long v8RuntimeHandle, Object v8Runtime);
 
     /**
+     * Release the native library's process-wide state: dispose V8 unless the library is reloadable
+     * and delete the JNI global class references. The class references otherwise keep the class loader
+     * that loaded the library reachable, so the JVM never unloads it. No V8 runtime may be open,
+     * and no other native call may follow on this library.
+     *
+     * @since 6.0.1-ffm.2
+     */
+    void releaseLibrary();
+
+    /**
      * Remove a JNI global reference.
      *
      * @param handle the handle

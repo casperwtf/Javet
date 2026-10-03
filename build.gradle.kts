@@ -22,7 +22,7 @@ object Config {
 
     // The casperwtf fork publishes to the Maven-layout `maven` branch, served raw by GitHub.
     object Fork {
-        const val VERSION = "${Versions.JAVET}-ffm.1"
+        const val VERSION = "${Versions.JAVET}-ffm.2"
         const val URL = "https://github.com/casperwtf/Javet"
         const val REPOSITORY = "maven-repo"
     }

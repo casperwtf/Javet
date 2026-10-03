@@ -610,6 +610,9 @@ class V8Native implements IV8Native {
     public native void registerV8Runtime(long v8RuntimeHandle, Object v8Runtime);
 
     @Override
+    public native void releaseLibrary();
+
+    @Override
     public native void removeJNIGlobalRef(long handle);
 
     @Override

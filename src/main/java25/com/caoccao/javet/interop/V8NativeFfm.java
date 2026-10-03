@@ -85,7 +85,6 @@ class V8NativeFfm extends V8Native implements LongBinaryOperator {
     private final MethodHandle removeReferenceHandle;
     private final MethodHandle reserveHandle;
     private final MemorySegment callbackStub;
-    private volatile V8Runtime lastV8Runtime;
     private volatile Map<Long, V8Runtime> v8RuntimeMap;
 
     V8NativeFfm() throws ReflectiveOperationException {
@@ -780,20 +779,15 @@ class V8NativeFfm extends V8Native implements LongBinaryOperator {
     }
 
     private V8Runtime runtime(long v8RuntimeHandle) throws ReflectiveOperationException {
-        V8Runtime v8Runtime = lastV8Runtime;
-        if (v8Runtime != null && v8Runtime.getHandle() == v8RuntimeHandle) {
-            return v8Runtime;
-        }
         Map<Long, V8Runtime> map = v8RuntimeMap;
         if (map == null) {
             map = runtimeMap();
             v8RuntimeMap = map;
         }
-        v8Runtime = map.get(v8RuntimeHandle);
+        V8Runtime v8Runtime = map.get(v8RuntimeHandle);
         if (v8Runtime == null) {
             throw new IllegalStateException("V8 runtime " + v8RuntimeHandle + " is not registered");
         }
-        lastV8Runtime = v8Runtime;
         return v8Runtime;
     }
 

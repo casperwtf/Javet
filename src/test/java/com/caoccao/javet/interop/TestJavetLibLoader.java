@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -68,6 +70,28 @@ public class TestJavetLibLoader {
             }
         } catch (JavetException e) {
             // This is expected.
+        }
+    }
+
+    @Test
+    public void testUnloadReleasesClassLoader() throws Exception {
+        V8Host v8Host = V8Host.getV8Instance();
+        try (V8Runtime v8Runtime = v8Host.createV8Runtime()) {
+            assertEquals(2, v8Runtime.getExecutor("1 + 1").executeInteger());
+        }
+        Field field = V8Host.class.getDeclaredField("javetClassLoader");
+        field.setAccessible(true);
+        WeakReference<Object> javetClassLoader = new WeakReference<>(field.get(v8Host));
+        assertNotNull(javetClassLoader.get());
+        assertTrue(v8Host.unloadLibrary());
+        for (int i = 0; i < 50 && javetClassLoader.get() != null; ++i) {
+            System.gc();
+            Thread.sleep(100);
+        }
+        assertNull(javetClassLoader.get(), "the unloaded library still pins its class loader");
+        assertTrue(v8Host.loadLibrary());
+        try (V8Runtime v8Runtime = v8Host.createV8Runtime()) {
+            assertEquals(2, v8Runtime.getExecutor("1 + 1").executeInteger());
         }
     }
 

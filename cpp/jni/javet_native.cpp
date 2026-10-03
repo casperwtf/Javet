@@ -58,6 +58,18 @@ void DELETE_GLOBAL_CLASS_REFS(JNIEnv* jniEnv) noexcept {
     GlobalClassRefs.clear();
 }
 
+void RELEASE_LIBRARY(JNIEnv* jniEnv) noexcept {
+    if (GlobalJavaVM == nullptr) {
+        return;
+    }
+#ifdef ENABLE_NODE
+    Javet::NodeNative::Dispose(jniEnv);
+#endif
+    Javet::V8Native::Dispose(jniEnv);
+    DELETE_GLOBAL_CLASS_REFS(jniEnv);
+    GlobalJavaVM = nullptr;
+}
+
 jint JNI_OnLoad(JavaVM* javaVM, void* reserved) {
     LOG_INFO("JNI_Onload() begins.");
     JNIEnv* jniEnv;
@@ -100,11 +112,7 @@ void JNI_OnUnload(JavaVM* javaVM, void* reserved) {
         LOG_ERROR("Failed to get JNIEnv.");
     }
     else {
-#ifdef ENABLE_NODE
-        Javet::NodeNative::Dispose(jniEnv);
-#endif
-        Javet::V8Native::Dispose(jniEnv);
-        DELETE_GLOBAL_CLASS_REFS(jniEnv);
+        RELEASE_LIBRARY(jniEnv);
     }
     GlobalJavaVM = nullptr;
     LOG_INFO("JNI_OnUnload() ends.");

@@ -401,6 +401,11 @@ JNIEXPORT void JNICALL Java_com_caoccao_javet_interop_V8Native_registerV8Runtime
     INCREASE_COUNTER(Javet::Monitor::CounterType::NewGlobalRef);
 }
 
+JNIEXPORT void JNICALL Java_com_caoccao_javet_interop_V8Native_releaseLibrary
+(JNIEnv* jniEnv, jobject caller) {
+    RELEASE_LIBRARY(jniEnv);
+}
+
 JNIEXPORT void JNICALL Java_com_caoccao_javet_interop_V8Native_removeJNIGlobalRef
 (JNIEnv* jniEnv, jobject caller, jlong handle) {
     jniEnv->DeleteGlobalRef((jobject)handle);

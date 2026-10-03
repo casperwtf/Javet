@@ -66,6 +66,7 @@ object Config {
         const val BYTE_BUDDY = "1.15.5"
         const val JACKSON_DATABIND = "2.16.0"
         const val JAVA_VERSION = "1.8"
+        const val JAVA_FFM_VERSION = 25
         const val JAVET = "6.0.1"
         const val JAVET_BUDDY = "0.4.0"
         const val JETTY_WEBSOCKET = "9.4.53.v20231009"
@@ -93,6 +94,20 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
     withSourcesJar()
     withJavadocJar()
+}
+
+// Java 25+ classes (the FFM native bridge) go to META-INF/versions/25 of a multi-release jar.
+val java25 by sourceSets.creating {
+    java.srcDir("src/main/java25")
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+}
+
+tasks.named<JavaCompile>(java25.compileJavaTaskName) {
+    options.release.set(Config.Versions.JAVA_FFM_VERSION)
+}
+
+sourceSets.test {
+    runtimeClasspath += java25.output
 }
 
 dependencies {
@@ -130,8 +145,18 @@ tasks.register<Exec>("buildJNIHeaders") {
 }
 
 tasks.jar {
+    into("META-INF/versions/${Config.Versions.JAVA_FFM_VERSION}") {
+        from(java25.output)
+    }
     manifest {
         attributes["Automatic-Module-Name"] = Config.GROUP_ID
+        attributes["Multi-Release"] = "true"
+    }
+}
+
+tasks.named<Jar>("sourcesJar") {
+    into("META-INF/versions/${Config.Versions.JAVA_FFM_VERSION}") {
+        from(java25.allSource)
     }
 }
 
@@ -166,6 +191,9 @@ tasks {
     }
     withType<Test> {
         systemProperty("file.encoding", "UTF-8")
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
+        // -Djavet.ffm=false runs the suite on the JNI implementation for comparison.
+        System.getProperty("javet.ffm")?.let { systemProperty("javet.ffm", it) }
     }
     withType<GenerateMavenPom> {
         destination = file("$buildDir/libs/${Config.Pom.ARTIFACT_ID}-${Config.VERSION}.pom")

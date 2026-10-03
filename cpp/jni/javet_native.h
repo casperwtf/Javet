@@ -31,6 +31,8 @@ jclass FIND_CLASS(JNIEnv* jniEnv, const char* className) noexcept;
 
 void DELETE_GLOBAL_CLASS_REFS(JNIEnv* jniEnv) noexcept;
 
+void RELEASE_LIBRARY(JNIEnv* jniEnv) noexcept;
+
 namespace Javet {
     class V8Runtime;
 

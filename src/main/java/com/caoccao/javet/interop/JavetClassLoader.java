@@ -41,6 +41,12 @@ final class JavetClassLoader extends ClassLoader {
     private static final String METHOD_SET_LIB_LOADING_LISTENER = "setLibLoadingListener";
     private static final String NODE_NATIVE_CLASS_NAME = NodeNative.class.getName();
     private static final String V8_NATIVE_CLASS_NAME = V8Native.class.getName();
+    /**
+     * The FFM implementation only exists under META-INF/versions/25 of the multi-release jar,
+     * so it is visible on Java 25+ only. Its nested classes share the prefix.
+     */
+    private static final String V8_NATIVE_FFM_CLASS_NAME = V8_NATIVE_CLASS_NAME + "Ffm";
+    private static final String PROPERTY_FFM = "javet.ffm";
     private final JSRuntimeType jsRuntimeType;
 
     /**
@@ -69,6 +75,12 @@ final class JavetClassLoader extends ClassLoader {
             }
             return new V8Native();
         } else {
+            if (!jsRuntimeType.isNode()) {
+                IV8Native ffmNative = getFfmNative();
+                if (ffmNative != null) {
+                    return ffmNative;
+                }
+            }
             try {
                 Class<?> classNative = loadClass(jsRuntimeType.isNode() ? NODE_NATIVE_CLASS_NAME : V8_NATIVE_CLASS_NAME);
                 Constructor<?> constructor = classNative.getDeclaredConstructor();
@@ -81,6 +93,29 @@ final class JavetClassLoader extends ClassLoader {
                         SimpleMap.of(JavetError.PARAMETER_REASON, e.getMessage()),
                         e);
             }
+        }
+    }
+
+    /**
+     * Gets the FFM V8 native interface if this runtime and the native library support it.
+     *
+     * @return the FFM V8 native interface, or null to stay on JNI
+     * @since 6.0.2
+     */
+    private IV8Native getFfmNative() {
+        if ("false".equalsIgnoreCase(System.getProperty(PROPERTY_FFM))
+                || getResource(V8_NATIVE_FFM_CLASS_NAME.replace('.', '/') + ".class") == null) {
+            return null;
+        }
+        try {
+            Class<?> classNative = loadClass(V8_NATIVE_FFM_CLASS_NAME);
+            Constructor<?> constructor = classNative.getDeclaredConstructor();
+            JavetReflectionUtils.safeSetAccessible(constructor);
+            return (IV8Native) constructor.newInstance();
+        } catch (Throwable t) {
+            // An older native library, an older JVM or --illegal-native-access=deny: JNI still works.
+            System.err.println("Javet FFM is unavailable, falling back to JNI: " + t);
+            return null;
         }
     }
 
@@ -116,7 +151,8 @@ final class JavetClassLoader extends ClassLoader {
     public Class<?> loadClass(String name) throws ClassNotFoundException {
         if (JAVET_LIB_LOADER_CLASS_NAME.equals(name) ||
                 NODE_NATIVE_CLASS_NAME.equals(name) ||
-                V8_NATIVE_CLASS_NAME.equals(name)) {
+                V8_NATIVE_CLASS_NAME.equals(name) ||
+                name.startsWith(V8_NATIVE_FFM_CLASS_NAME)) {
             String classPath = "/" + name.replace(".", "/") + ".class";
             try (InputStream inputStream = getClass().getResourceAsStream(classPath)) {
                 //noinspection ConstantConditions

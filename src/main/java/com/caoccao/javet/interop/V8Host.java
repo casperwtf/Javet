@@ -564,6 +564,12 @@ public final class V8Host {
             v8StatisticsFutureDaemon.purgeV8StatisticsFutureQueue();
             v8StatisticsFutureDaemon.setV8Native(null);
             isolateCreated = false;
+            try {
+                v8Native.releaseLibrary();
+            } catch (UnsatisfiedLinkError e) {
+                logger.logWarn("[{0}] The native library cannot release its global references.",
+                        jsRuntimeType.getName());
+            }
             v8Native = null;
             javetClassLoader = null;
             System.gc();

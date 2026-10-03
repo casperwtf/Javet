@@ -21,6 +21,7 @@
 #include "javet_callbacks.h"
 #include "javet_converter.h"
 #include "javet_exceptions.h"
+#include "javet_ffm.h"
 #include "javet_logging.h"
 #include "javet_native.h"
 #include "javet_v8_runtime.h"
@@ -477,11 +478,14 @@ namespace Javet {
         }
 
         JavetCallbackContextReference::JavetCallbackContextReference(V8Runtime* v8Runtime) noexcept
-            : v8Runtime(v8Runtime), v8PersistentCallbackContextHandlePointer(nullptr) {
+            : v8Runtime(v8Runtime), v8PersistentCallbackContextHandlePointer(nullptr), ffmFlags(-1) {
         }
 
         void JavetCallbackContextReference::CallFunction(
             const v8::FunctionCallbackInfo<v8::Value>& args) noexcept {
+            if (Javet::FFM::TryCallFunction(this, args)) {
+                return;
+            }
             auto jniEnvScope = JNIEnvScope::Acquire(GlobalJavaVM);
             if (!jniEnvScope) {
                 LOG_ERROR("CallFunction: JNI environment is unavailable.");
@@ -511,6 +515,7 @@ namespace Javet {
                     jobject callbackContext = jniEnv->CallObjectMethod(externalV8Runtime, jmethodIDV8RuntimeGetCallbackContext, TO_JAVA_LONG(this));
                     jboolean isReturnResult = jniEnv->CallBooleanMethod(callbackContext, jmethodIDJavetCallbackContextIsReturnResult);
                     jboolean isThisObjectRequired = jniEnv->CallBooleanMethod(callbackContext, jmethodIDJavetCallbackContextIsThisObjectRequired);
+                    ffmFlags = (isThisObjectRequired ? Javet::FFM::CALLBACK_THIS : 0) | (isReturnResult ? Javet::FFM::CALLBACK_RESULT : 0);
                     jobjectArray externalArgs = Javet::Converter::ToExternalV8ValueArray(jniEnv, v8Runtime, v8Context, args);
                     jobject thisObject = isThisObjectRequired ? Javet::Converter::ToExternalV8Value(jniEnv, v8Runtime, v8Context, args.This()) : nullptr;
                     jintArray resultType = isReturnResult ? jniEnv->NewIntArray(1) : nullptr;

@@ -20,6 +20,13 @@ object Config {
     const val VERSION = Versions.JAVET
     const val URL = "https://github.com/caoccao/Javet"
 
+    // The casperwtf fork publishes to the Maven-layout `maven` branch, served raw by GitHub.
+    object Fork {
+        const val VERSION = "${Versions.JAVET}-ffm.1"
+        const val URL = "https://github.com/casperwtf/Javet"
+        const val REPOSITORY = "maven-repo"
+    }
+
     object Pom {
         const val ARTIFACT_ID = "javet"
         const val DESCRIPTION =
@@ -195,13 +202,97 @@ tasks {
         // -Djavet.ffm=false runs the suite on the JNI implementation for comparison.
         System.getProperty("javet.ffm")?.let { systemProperty("javet.ffm", it) }
     }
-    withType<GenerateMavenPom> {
+    // Only the upstream publication; the fork publications keep their own POM files.
+    withType<GenerateMavenPom>().matching { it.name == "generatePomFileForGeneratePomPublication" }.configureEach {
         destination = file("$buildDir/libs/${Config.Pom.ARTIFACT_ID}-${Config.VERSION}.pom")
     }
 }
 
+// The fork's artifacts mirror Maven Central's split: javet without natives, one jar per native library.
+val forkJavetJar = tasks.register<Jar>("forkJavetJar") {
+    archiveBaseName.set(Config.Pom.ARTIFACT_ID)
+    archiveVersion.set(Config.Fork.VERSION)
+    destinationDirectory.set(layout.buildDirectory.dir("fork"))
+    from(sourceSets.main.get().output) {
+        exclude("libjavet-*")
+    }
+    into("META-INF/versions/${Config.Versions.JAVA_FFM_VERSION}") {
+        from(java25.output)
+    }
+    from("LICENSE") {
+        into("META-INF")
+    }
+    manifest {
+        attributes["Automatic-Module-Name"] = Config.GROUP_ID
+        attributes["Multi-Release"] = "true"
+    }
+}
+
+val forkV8LinuxX8664Jar = tasks.register<Jar>("forkV8LinuxX8664Jar") {
+    archiveBaseName.set("javet-v8-linux-x86_64")
+    archiveVersion.set(Config.Fork.VERSION)
+    destinationDirectory.set(layout.buildDirectory.dir("fork"))
+    from("src/main/resources") {
+        include("libjavet-v8-linux-x86_64.v.*.so")
+    }
+    from(files("LICENSE", "cpp/licenses/LICENSE.v8", "cpp/licenses/LICENSE.node")) {
+        into("META-INF")
+    }
+    doFirst {
+        val library = file("src/main/resources/libjavet-v8-linux-x86_64.v.${Config.VERSION}.so")
+        if (!library.exists()) {
+            throw GradleException("Build the native library first: $library is missing")
+        }
+    }
+}
+
+fun MavenPom.forkPom(pomName: String, pomDescription: String) {
+    name.set(pomName)
+    description.set(pomDescription)
+    url.set(Config.Fork.URL)
+    licenses {
+        license {
+            name.set(Config.Pom.License.NAME)
+            url.set(Config.Pom.License.URL)
+        }
+    }
+    developers {
+        developer {
+            id.set(Config.Pom.Developer.ID)
+            email.set(Config.Pom.Developer.EMAIL)
+            name.set(Config.Pom.Developer.NAME)
+            organization.set(Config.Pom.Developer.ORGANIZATION)
+            organizationUrl.set(Config.Pom.Developer.ORGANIZATION_URL)
+        }
+    }
+    scm {
+        connection.set("scm:git:https://github.com/casperwtf/Javet.git")
+        url.set(Config.Fork.URL)
+    }
+}
+
 publishing {
+    repositories {
+        maven {
+            name = "fork"
+            url = uri(layout.buildDirectory.dir(Config.Fork.REPOSITORY))
+        }
+    }
     publications {
+        create<MavenPublication>("forkJavet") {
+            groupId = Config.GROUP_ID
+            artifactId = Config.Pom.ARTIFACT_ID
+            version = Config.Fork.VERSION
+            artifact(forkJavetJar)
+            pom.forkPom(Config.NAME, Config.Pom.DESCRIPTION + " Fork with a Java 25 FFM fast path.")
+        }
+        create<MavenPublication>("forkV8LinuxX8664") {
+            groupId = Config.GROUP_ID
+            artifactId = "javet-v8-linux-x86_64"
+            version = Config.Fork.VERSION
+            artifact(forkV8LinuxX8664Jar)
+            pom.forkPom("Javet V8 Linux x86_64", "Javet V8 native library for Linux x86_64, with the FFM entry points.")
+        }
         create<MavenPublication>("generatePom") {
             from(components["java"])
             pom {

@@ -8,16 +8,19 @@ Repository URL: `https://raw.githubusercontent.com/casperwtf/Javet/maven`
 
 | Artifact | Version |
 |---|---|
-| `com.caoccao.javet:javet` | `6.0.1-ffm.1` |
-| `com.caoccao.javet:javet-v8-linux-x86_64` | `6.0.1-ffm.1` |
+| `com.caoccao.javet:javet` | `6.0.1-ffm.2`, `6.0.1-ffm.1` |
+| `com.caoccao.javet:javet-v8-linux-x86_64` | `6.0.1-ffm.2`, `6.0.1-ffm.1` |
+
+`6.0.1-ffm.2`: `V8Host.unloadLibrary()` releases the native library's JNI class references, so the class loader that
+loaded it can be collected; the FFM runtime lookup no longer caches the last runtime.
 
 ```kotlin
 repositories {
     maven("https://raw.githubusercontent.com/casperwtf/Javet/maven")
 }
 dependencies {
-    implementation("com.caoccao.javet:javet:6.0.1-ffm.1")
-    implementation("com.caoccao.javet:javet-v8-linux-x86_64:6.0.1-ffm.1")
+    implementation("com.caoccao.javet:javet:6.0.1-ffm.2")
+    implementation("com.caoccao.javet:javet-v8-linux-x86_64:6.0.1-ffm.2")
 }
 ```
 
